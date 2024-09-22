@@ -20,7 +20,7 @@ func main() {
 
 func run(proj string, out io.Writer) error {
 	if proj == "" {
-		return fmt.Errorf("Project directory is required")
+		return fmt.Errorf("Project directory is required: %w", ErrValidation)
 	}
 
 	// In the first step we will run go build program. However, if we just run "go build .", go will output an executable file,  then we will need to cleanup this file after
