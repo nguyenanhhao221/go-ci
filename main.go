@@ -22,7 +22,6 @@ func run(proj string, out io.Writer) error {
 		return fmt.Errorf("Project directory is required: %w", ErrValidation)
 	}
 
-	//TODO: extend this pipeline length
 	pipeline := make([]step, 2)
 	pipeline[0] = newStep("go build", "go", proj, "GO Build: SUCCESS", []string{"build", ".", "errors"})
 	pipeline[1] = newStep("go test", "go", proj, "GO Test: SUCCESS", []string{"test", "-v", "errors"})
