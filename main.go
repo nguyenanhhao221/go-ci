@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 )
 
 func main() {
@@ -23,16 +22,19 @@ func run(proj string, out io.Writer) error {
 		return fmt.Errorf("Project directory is required: %w", ErrValidation)
 	}
 
-	// In the first step we will run go build program. However, if we just run "go build .", go will output an executable file,  then we will need to cleanup this file after
-	// However, when go build multiple packages, it doesn't output any files. so we can use the "errors" standard package in the build command
-	// This bascially run "go build . errors"
-	args := []string{"build", ".", "errors"}
-	cmd := exec.Command("go", args...)
-	cmd.Dir = proj
+	//TODO: extend this pipeline length
+	pipeline := make([]step, 1)
+	pipeline[0] = newStep("go build", "go", proj, "GO Build: SUCCESS", []string{"build", ".", "errors"})
 
-	if err := cmd.Run(); err != nil {
-		return &stepErr{step: "go build", msg: "go build failed", cause: err}
+	for _, s := range pipeline {
+		msg, err := s.execute()
+		if err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintln(out, msg); err != nil {
+			return err
+		}
 	}
-	_, err := fmt.Fprintln(out, "GO Build: SUCCESS")
-	return err
+
+	return nil
 }
