@@ -13,7 +13,7 @@ func TestRun(t *testing.T) {
 		out    string
 		expErr error
 	}{
-		{name: "success", proj: "./testdata/tool", out: "GO Build: SUCCESS\n", expErr: nil},
+		{name: "success", proj: "./testdata/tool", out: "GO Build: SUCCESS\nGO Test: SUCCESS\n", expErr: nil},
 		{name: "fail", proj: "./testdata/toolErr", out: "", expErr: &stepErr{step: "go build"}},
 	}
 	for _, tc := range testCases {
@@ -36,7 +36,7 @@ func TestRun(t *testing.T) {
 			}
 
 			if out.String() != tc.out {
-				t.Errorf("Expected: %s got: %s", tc.out, out.String())
+				t.Errorf("Expected: %s, got: %s", tc.out, out.String())
 			}
 		})
 	}
