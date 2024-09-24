@@ -24,10 +24,11 @@ func TestRun(t *testing.T) {
 		setUpGit bool
 		mockCmd  func(ctx context.Context, name string, arg ...string) *exec.Cmd
 	}{
-		{name: "success", proj: "./testdata/tool", out: "GO Build: SUCCESS\nGO Test: SUCCESS\nGO Fmt: SUCCESS\nGit Push: SUCCESS\n", expErr: nil, setUpGit: true, mockCmd: nil},
-		{name: "successMock", proj: "./testdata/tool", out: "GO Build: SUCCESS\nGO Test: SUCCESS\nGO Fmt: SUCCESS\nGit Push: SUCCESS\n", expErr: nil, setUpGit: false, mockCmd: mockCmdContext},
+		{name: "success", proj: "./testdata/tool", out: "GO Build: SUCCESS\nGO Lint: SUCCESS\nGO Test: SUCCESS\nGO Fmt: SUCCESS\nGit Push: SUCCESS\n", expErr: nil, setUpGit: true, mockCmd: nil},
+		{name: "successMock", proj: "./testdata/tool", out: "GO Build: SUCCESS\nGO Lint: SUCCESS\nGO Test: SUCCESS\nGO Fmt: SUCCESS\nGit Push: SUCCESS\n", expErr: nil, setUpGit: false, mockCmd: mockCmdContext},
 		{name: "fail", proj: "./testdata/toolErr", out: "", expErr: &stepErr{step: "go build"}},
 		{name: "failFmt", proj: "./testdata/toolFmtErr", out: "", expErr: &stepErr{step: "go fmt"}},
+		{name: "failLint", proj: "./testdata/toolLintErr", out: "", expErr: &stepErr{step: "go lint"}, setUpGit: false, mockCmd: nil},
 		{name: "failTimeout", proj: "./testdata/tool", out: "", expErr: context.DeadlineExceeded, setUpGit: false, mockCmd: mockCmdTimeout},
 	}
 	for _, tc := range testCases {

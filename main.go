@@ -29,11 +29,12 @@ func run(proj string, out io.Writer) error {
 		return fmt.Errorf("Project directory is required: %w", ErrValidation)
 	}
 
-	pipeline := make([]executer, 4)
+	pipeline := make([]executer, 5)
 	pipeline[0] = newStep("go build", "go", proj, "GO Build: SUCCESS", []string{"build", ".", "errors"})
-	pipeline[1] = newStep("go test", "go", proj, "GO Test: SUCCESS", []string{"test", "-v", "errors"})
-	pipeline[2] = newExeptionStep("go fmt", "gofmt", proj, "GO Fmt: SUCCESS", []string{"-l", "."})
-	pipeline[3] = newTimeoutStep("go push", "git", proj, "Git Push: SUCCESS", []string{"push", "origin", "main"}, 10*time.Second)
+	pipeline[1] = newStep("go lint", "golangci-lint", proj, "GO Lint: SUCCESS", []string{"run"})
+	pipeline[2] = newStep("go test", "go", proj, "GO Test: SUCCESS", []string{"test", "-v", "errors"})
+	pipeline[3] = newExeptionStep("go fmt", "gofmt", proj, "GO Fmt: SUCCESS", []string{"-l", "."})
+	pipeline[4] = newTimeoutStep("go push", "git", proj, "Git Push: SUCCESS", []string{"push", "origin", "main"}, 10*time.Second)
 
 	// Use signal channel to "listen" to terminal signal if they were sent to the application
 	sigCh := make(chan os.Signal, 1)
