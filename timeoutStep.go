@@ -11,10 +11,13 @@ type timeoutStep struct {
 	timeout time.Duration
 }
 
+// So later we can mock
+var command = exec.CommandContext
+
 func (s timeoutStep) execute() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 
-	cmd := exec.CommandContext(ctx, s.exe, s.args...)
+	cmd := command(ctx, s.exe, s.args...)
 	defer cancel()
 
 	cmd.Dir = s.proj
