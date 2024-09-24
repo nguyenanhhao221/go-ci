@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -33,15 +35,37 @@ func run(proj string, out io.Writer) error {
 	pipeline[2] = newExeptionStep("go fmt", "gofmt", proj, "GO Fmt: SUCCESS", []string{"-l", "."})
 	pipeline[3] = newTimeoutStep("go push", "git", proj, "Git Push: SUCCESS", []string{"push", "origin", "main"}, 10*time.Second)
 
-	for _, s := range pipeline {
-		msg, err := s.execute()
-		if err != nil {
-			return err
+	// Use signal channel to "listen" to terminal signal if they were sent to the application
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+
+	errCh := make(chan error)
+	doneCh := make(chan struct{})
+
+	go func() {
+		for _, s := range pipeline {
+			msg, err := s.execute()
+			if err != nil {
+				errCh <- err
+				return
+			}
+			if _, err := fmt.Fprintln(out, msg); err != nil {
+				errCh <- err
+				return
+			}
 		}
-		if _, err := fmt.Fprintln(out, msg); err != nil {
+		close(doneCh)
+	}()
+
+	for {
+		select {
+		case rec := <-sigCh:
+			signal.Stop(sigCh)
+			return fmt.Errorf("%s: Exiting: %w", rec, ErrSignal)
+		case err := <-errCh:
 			return err
+		case <-doneCh:
+			return nil
 		}
 	}
-
-	return nil
 }

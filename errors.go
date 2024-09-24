@@ -5,6 +5,11 @@ import (
 	"fmt"
 )
 
+var (
+	ErrValidation = errors.New("Validation failed")
+	ErrSignal     = errors.New("Received Signal")
+)
+
 type stepErr struct {
 	step  string // record the step name  in an error
 	msg   string // describes the error condition
@@ -26,5 +31,3 @@ func (s *stepErr) Is(target error) bool {
 func (s *stepErr) Unwrap() error {
 	return s.cause
 }
-
-var ErrValidation = errors.New("Validation failed")
