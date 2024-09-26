@@ -46,7 +46,7 @@ func TestRun(t *testing.T) {
 			}
 
 			var out bytes.Buffer
-			err := run(tc.proj, &out, "main")
+			err := run(tc.proj, &out)
 			if tc.expErr != nil {
 				if err == nil {
 					t.Errorf("Expected error: %q. Got 'nil' instead", tc.expErr)
@@ -94,7 +94,7 @@ func TestRunKillSignal(t *testing.T) {
 			defer signal.Stop(expSigCh)
 
 			go func() {
-				errCh <- run(tc.proj, io.Discard, "main")
+				errCh <- run(tc.proj, io.Discard)
 			}()
 
 			go func() {
