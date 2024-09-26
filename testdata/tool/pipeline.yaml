@@ -1,0 +1,21 @@
+go-build:
+  command: "go"
+  args: ["build", "."]
+  success_message: "GO Build: SUCCESS"
+go-lint:
+  command: "golangci-lint"
+  args: ["run"]
+  success_message: "GO Lint: SUCCESS"
+go-test:
+  command: "go"
+  args: ["test", "-v"]
+  success_message: "GO Test: SUCCESS"
+go-fmt:
+  command: "gofmt"
+  args: ["-l", "."]
+  success_message: "GO Fmt: SUCCESS"
+git-push:
+  command: "git"
+  args: ["push", "origin", "main"]
+  success_message: "Git Push: SUCCESS"
+  timeout: 10s

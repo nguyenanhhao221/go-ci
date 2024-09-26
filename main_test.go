@@ -10,9 +10,12 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestRun(t *testing.T) {
@@ -20,17 +23,18 @@ func TestRun(t *testing.T) {
 		name     string
 		proj     string
 		gBranch  string
+		yamlFile string
 		out      string
 		expErr   error
 		setUpGit bool
 		mockCmd  func(ctx context.Context, name string, arg ...string) *exec.Cmd
 	}{
-		{name: "success", proj: "./testdata/tool", out: "GO Build: SUCCESS\nGO Lint: SUCCESS\nGO Test: SUCCESS\nGO Fmt: SUCCESS\nGit Push: SUCCESS\n", expErr: nil, setUpGit: true, mockCmd: nil},
+		{name: "success", proj: "./testdata/tool", out: "GO Build: SUCCESS\nGO Lint: SUCCESS\nGO Test: SUCCESS\nGO Fmt: SUCCESS\nGit Push: SUCCESS\n", expErr: nil, setUpGit: true, mockCmd: nil, yamlFile: "pipeline.yaml"},
 		{name: "successMock", proj: "./testdata/tool", out: "GO Build: SUCCESS\nGO Lint: SUCCESS\nGO Test: SUCCESS\nGO Fmt: SUCCESS\nGit Push: SUCCESS\n", expErr: nil, setUpGit: false, mockCmd: mockCmdContext},
-		{name: "fail", proj: "./testdata/toolErr", out: "", expErr: &stepErr{step: "go build"}},
-		{name: "failFmt", proj: "./testdata/toolFmtErr", out: "", expErr: &stepErr{step: "go fmt"}},
-		{name: "failLint", proj: "./testdata/toolLintErr", out: "", expErr: &stepErr{step: "go lint"}, setUpGit: false, mockCmd: nil},
-		{name: "failGitBranch", proj: "./testdata/tool", out: "", expErr: &stepErr{step: "git push"}, setUpGit: true, mockCmd: nil, gBranch: "foo"},
+		{name: "fail", proj: "./testdata/toolErr", out: "", expErr: &stepErr{step: "go-build"}, yamlFile: "../pipeline.yaml"},
+		{name: "failFmt", proj: "./testdata/toolFmtErr", out: "", expErr: &stepErr{step: "go-fmt"}},
+		{name: "failLint", proj: "./testdata/toolLintErr", out: "", expErr: &stepErr{step: "go-lint"}, setUpGit: false, mockCmd: nil},
+		{name: "failGitBranch", proj: "./testdata/tool", out: "", expErr: &stepErr{step: "git-push"}, setUpGit: true, mockCmd: nil, gBranch: "foo", yamlFile: "pipeline.yaml"},
 		{name: "failTimeout", proj: "./testdata/tool", out: "", expErr: context.DeadlineExceeded, setUpGit: false, mockCmd: mockCmdTimeout},
 	}
 	for _, tc := range testCases {
@@ -58,11 +62,16 @@ func TestRun(t *testing.T) {
 			var out bytes.Buffer
 
 			var gBranch = "main"
+			var yamlFile = "../pipeline.yaml"
 			if tc.gBranch != "" {
 				gBranch = tc.gBranch
 			}
 
-			err := run(tc.proj, gBranch, &out)
+			if tc.yamlFile != "" {
+				yamlFile = tc.yamlFile
+			}
+
+			err := run(tc.proj, gBranch, yamlFile, &out)
 			if tc.expErr != nil {
 				if err == nil {
 					t.Errorf("Expected error: %q. Got 'nil' instead", tc.expErr)
@@ -110,7 +119,7 @@ func TestRunKillSignal(t *testing.T) {
 			defer signal.Stop(expSigCh)
 
 			go func() {
-				errCh <- run(tc.proj, "main", io.Discard)
+				errCh <- run(tc.proj, "main", "pipeline.yaml", io.Discard)
 			}()
 
 			go func() {
@@ -168,10 +177,7 @@ func setUpGit(t *testing.T, proj string) {
 
 	// Clean up the .git folder in the test proj path that was pass in
 	t.Cleanup(func() {
-		err := os.RemoveAll(filepath.Join(projPath, ".git"))
-		if err != nil {
-			t.Errorf("Failed to cleanup .git directory: %s", err)
-		}
+		os.RemoveAll(filepath.Join(projPath, ".git"))
 	})
 
 	var gitCmdList = []struct {
@@ -230,4 +236,58 @@ func mockCmdTimeout(ctx context.Context, exe string, arg ...string) *exec.Cmd {
 	cmd := mockCmdContext(ctx, exe, arg...)
 	cmd.Env = append(cmd.Env, "GO_HELPER_TIMEOUT=1")
 	return cmd
+}
+
+func TestGetPipelingFromFile(t *testing.T) {
+	// Define the expected pipeline structure (should match what's in pipeline.yaml)
+	expected := PipeLine{
+		{
+			"go-build": Job{
+				Command:    "go",
+				Args:       []string{"build", "."},
+				SuccessMsg: "GO Build: SUCCESS",
+				Timeout:    0,
+			},
+		},
+		{
+			"go-lint": Job{
+				Command:    "golangci-lint",
+				Args:       []string{"run"},
+				SuccessMsg: "GO Lint: SUCCESS",
+				Timeout:    0,
+			},
+		},
+		{
+			"go-test": Job{
+				Command:    "go",
+				Args:       []string{"test", "-v"},
+				SuccessMsg: "GO Test: SUCCESS",
+				Timeout:    0,
+			},
+		},
+		{
+			"go-fmt": Job{
+				Command:    "gofmt",
+				Args:       []string{"-l", "."},
+				SuccessMsg: "GO Fmt: SUCCESS",
+				Timeout:    0,
+			},
+		},
+		{
+			"git-push": Job{
+				Command:    "git",
+				Args:       []string{"push", "origin", "main"},
+				SuccessMsg: "Git Push: SUCCESS",
+				Timeout:    10 * time.Second, // Adjust the timeout based on your YAML content
+			},
+		},
+	}
+	out, err := getPipelineFromFile("pipeline.yaml", "./testdata/tool")
+	if err != nil {
+		t.Errorf("Unexpected error %q", err)
+	}
+
+	if !reflect.DeepEqual(out, expected) {
+		t.Error(cmp.Diff(out, expected))
+	}
 }
