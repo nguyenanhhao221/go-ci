@@ -35,6 +35,14 @@ func TestRun(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// This is to avoid case when the command is mock for other test
+			// Because command is define globally and base on the order of our test tables, if test 1 make command into a mock, it will persist to below test unless cleanup properly
+			originalCommand := command // Save the original command
+
+			t.Cleanup(func() {
+				command = originalCommand
+			})
+
 			if tc.setUpGit {
 				_, err := exec.LookPath("git")
 				if err != nil {
@@ -160,7 +168,10 @@ func setUpGit(t *testing.T, proj string) {
 
 	// Clean up the .git folder in the test proj path that was pass in
 	t.Cleanup(func() {
-		os.RemoveAll(filepath.Join(projPath, ".git"))
+		err := os.RemoveAll(filepath.Join(projPath, ".git"))
+		if err != nil {
+			t.Errorf("Failed to cleanup .git directory: %s", err)
+		}
 	})
 
 	var gitCmdList = []struct {
