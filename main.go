@@ -16,15 +16,16 @@ type executer interface {
 
 func main() {
 	proj := flag.String("p", "", "Project directory")
+	gitBranch := flag.String("branch", "main", "Git branch to push")
 	flag.Parse()
 
-	if err := run(*proj, os.Stdout); err != nil {
+	if err := run(*proj, *gitBranch, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(proj string, out io.Writer) error {
+func run(proj, gitBranch string, out io.Writer) error {
 	if proj == "" {
 		return fmt.Errorf("Project directory is required: %w", ErrValidation)
 	}
@@ -34,7 +35,7 @@ func run(proj string, out io.Writer) error {
 	pipeline[1] = newStep("go lint", "golangci-lint", proj, "GO Lint: SUCCESS", []string{"run"})
 	pipeline[2] = newStep("go test", "go", proj, "GO Test: SUCCESS", []string{"test", "-v", "errors"})
 	pipeline[3] = newExeptionStep("go fmt", "gofmt", proj, "GO Fmt: SUCCESS", []string{"-l", "."})
-	pipeline[4] = newTimeoutStep("go push", "git", proj, "Git Push: SUCCESS", []string{"push", "origin", "main"}, 10*time.Second)
+	pipeline[4] = newTimeoutStep("git push", "git", proj, "Git Push: SUCCESS", []string{"push", "origin", gitBranch}, 10*time.Second)
 
 	// Use signal channel to "listen" to terminal signal if they were sent to the application
 	sigCh := make(chan os.Signal, 1)

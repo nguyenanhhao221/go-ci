@@ -19,6 +19,7 @@ func TestRun(t *testing.T) {
 	testCases := []struct {
 		name     string
 		proj     string
+		gBranch  string
 		out      string
 		expErr   error
 		setUpGit bool
@@ -29,6 +30,7 @@ func TestRun(t *testing.T) {
 		{name: "fail", proj: "./testdata/toolErr", out: "", expErr: &stepErr{step: "go build"}},
 		{name: "failFmt", proj: "./testdata/toolFmtErr", out: "", expErr: &stepErr{step: "go fmt"}},
 		{name: "failLint", proj: "./testdata/toolLintErr", out: "", expErr: &stepErr{step: "go lint"}, setUpGit: false, mockCmd: nil},
+		{name: "failGitBranch", proj: "./testdata/tool", out: "", expErr: &stepErr{step: "git push"}, setUpGit: true, mockCmd: nil, gBranch: "foo"},
 		{name: "failTimeout", proj: "./testdata/tool", out: "", expErr: context.DeadlineExceeded, setUpGit: false, mockCmd: mockCmdTimeout},
 	}
 	for _, tc := range testCases {
@@ -46,7 +48,13 @@ func TestRun(t *testing.T) {
 			}
 
 			var out bytes.Buffer
-			err := run(tc.proj, &out)
+
+			var gBranch = "main"
+			if tc.gBranch != "" {
+				gBranch = tc.gBranch
+			}
+
+			err := run(tc.proj, gBranch, &out)
 			if tc.expErr != nil {
 				if err == nil {
 					t.Errorf("Expected error: %q. Got 'nil' instead", tc.expErr)
@@ -94,7 +102,7 @@ func TestRunKillSignal(t *testing.T) {
 			defer signal.Stop(expSigCh)
 
 			go func() {
-				errCh <- run(tc.proj, io.Discard)
+				errCh <- run(tc.proj, "main", io.Discard)
 			}()
 
 			go func() {
